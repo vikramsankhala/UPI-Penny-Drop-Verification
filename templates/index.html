@@ -422,6 +422,43 @@
 
         .qr-decoded .label { font-size: 0.75rem; color: var(--accent); text-transform: uppercase; }
         .qr-decoded .val { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; }
+
+        .detail-section {
+            background: var(--surface-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .detail-section-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            margin-bottom: 0.6rem;
+        }
+
+        .detail-grid {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-item:last-child { border-bottom: none; }
+
+        .detail-key { font-size: 0.85rem; color: var(--text-muted); flex-shrink: 0; }
+        .detail-val { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; text-align: right; word-break: break-all; }
+        .detail-val.null { color: var(--text-muted); font-style: italic; }
     </style>
 </head>
 <body>
@@ -659,7 +696,35 @@
         const submitBtn = document.getElementById('submitBtn');
         const submitVpaBtn = document.getElementById('submitVpaBtn');
 
-        function showResult(data, isVpa) {
+        function renderDetailSection(title, obj, keys) {
+            if (!obj) return '';
+            const items = keys.map(k => {
+                let v = obj[k];
+                if (v === undefined || v === null) return null;
+                if (typeof v === 'object' && !Array.isArray(v)) v = JSON.stringify(v);
+                if (Array.isArray(v)) v = v.join(', ');
+                const label = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                return '<div class="detail-item"><span class="detail-key">' + label + '</span><span class="detail-val">' + ('' + v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span></div>';
+            }).filter(Boolean);
+            if (items.length === 0) return '';
+            return '<div class="detail-section"><div class="detail-section-title">' + title + '</div><div class="detail-grid">' + items.join('') + '</div></div>';
+        }
+
+        function renderAllKeys(obj, title) {
+            if (!obj || typeof obj !== 'object') return '';
+            const items = [];
+            for (const k of Object.keys(obj)) {
+                if (k.startsWith('_')) continue;
+                let v = obj[k];
+                if (v === undefined || v === null) { items.push('<div class="detail-item"><span class="detail-key">' + k + '</span><span class="detail-val null">—</span></div>'); continue; }
+                if (typeof v === 'object' && !Array.isArray(v)) v = JSON.stringify(v);
+                else if (Array.isArray(v)) v = v.join(', ');
+                items.push('<div class="detail-item"><span class="detail-key">' + k + '</span><span class="detail-val">' + ('' + v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span></div>');
+            }
+            return items.length ? '<div class="detail-section"><div class="detail-section-title">' + title + '</div><div class="detail-grid">' + items.join('') + '</div></div>' : '';
+        }
+
+        function showResult(data) {
             if (data.error) {
                 resultCard.classList.add('visible', 'failed');
                 resultIcon.className = 'result-icon failed';
@@ -677,28 +742,58 @@
                 if (success) {
                     const vr = data.validation_results || {};
                     const tx = data.transaction_response || {};
+                    const all = data._all || {};
+                    const fa = all.fund_account || data.fund_account || {};
+                    const ba = fa.bank_account || {};
+                    const vpaObj = fa.vpa || {};
+                    const sd = all.status_details || data.status_details || {};
+                    const contact = all.contact || fa.contact || {};
+                    const details = vr.details || {};
+                    let html = '';
+                    html += renderDetailSection('Transaction response', {
+                        bank: tx.bank || details.bank_name || ba.bank_name,
+                        branch: tx.branch || details.branch || ba.branch,
+                        bank_registered_name: tx.bank_registered_name || vr.registered_name || ba.name,
+                        account_number: tx.account_number || vr.account_number || ba.account_number,
+                        ifsc: tx.ifsc || vr.ifsc || ba.ifsc,
+                        vpa: tx.vpa || vpaObj.address || details.vpa
+                    }, ['bank', 'branch', 'bank_registered_name', 'account_number', 'ifsc', 'vpa']);
+                    html += renderDetailSection('Validation results', {
+                        account_status: vr.account_status,
+                        registered_name: vr.registered_name,
+                        name_match_score: vr.name_match_score,
+                        account_number: vr.account_number || ba.account_number,
+                        ifsc: vr.ifsc || ba.ifsc
+                    }, ['account_status', 'registered_name', 'name_match_score', 'account_number', 'ifsc']);
+                    if (Object.keys(details).length > 0) html += renderAllKeys(details, 'Validation details');
+                    if (vr.name_match_score != null) html += '<div class="detail-section"><div class="detail-section-title">Name match confidence</div><div class="name-match-bar"><div class="name-match-fill" style="width:' + vr.name_match_score + '%"></div></div><span class="detail-val">' + vr.name_match_score + '%</span></div>';
+                    html += renderDetailSection('Transaction metadata', {
+                        id: data.id || all.id,
+                        entity: data.entity || all.entity,
+                        status: data.status || all.status,
+                        utr: data.utr || all.utr,
+                        reference_id: data.reference_id || all.reference_id
+                    }, ['id', 'entity', 'status', 'utr', 'reference_id']);
+                    html += renderDetailSection('Fund account', {
+                        id: fa.id,
+                        account_type: fa.account_type,
+                        active: fa.active,
+                        created_at: fa.created_at ? new Date(fa.created_at * 1000).toISOString() : null
+                    }, ['id', 'account_type', 'active', 'created_at']);
+                    if (Object.keys(ba).length > 0) html += renderAllKeys(ba, 'Bank account');
+                    if (Object.keys(vpaObj).length > 0) html += renderAllKeys(vpaObj, 'UPI / VPA');
+                    html += renderDetailSection('Status details', sd, ['description', 'source', 'reason']);
+                    if (Object.keys(contact).length > 0) html += renderDetailSection('Contact', contact, ['id', 'name', 'email', 'contact', 'type', 'active']);
+                    if (data.notes && Object.keys(data.notes).length > 0) html += renderAllKeys(data.notes, 'Notes');
+                    if (data._mock) html += '<div class="detail-section"><div class="detail-section-title">Mode</div><div class="detail-grid"><div class="detail-item"><span class="detail-key">Mode</span><span class="detail-val">Demo (mock)</span></div></div></div>';
                     resultTitle.textContent = 'Account verified';
-                    resultSubtitle.textContent = 'Penny drop completed — transaction response below';
-                    resultDetails.innerHTML = `
-                        <div class="tx-response-section">
-                            <div class="tx-response-label">Transaction response</div>
-                            <div class="tx-response-grid">
-                                ${tx.vpa ? `<div class="tx-response-item"><span class="tx-response-key">UPI ID</span><span class="tx-response-val">${tx.vpa}</span></div>` : ''}
-                                <div class="tx-response-item"><span class="tx-response-key">Bank</span><span class="tx-response-val">${tx.bank || vr.details?.bank_name || '—'}</span></div>
-                                <div class="tx-response-item"><span class="tx-response-key">Branch</span><span class="tx-response-val">${tx.branch || vr.details?.branch || '—'}</span></div>
-                                <div class="tx-response-item"><span class="tx-response-key">Bank-registered name</span><span class="tx-response-val">${tx.bank_registered_name || vr.registered_name || '—'}</span></div>
-                            </div>
-                        </div>
-                        <div class="result-row"><span class="key">Account status</span><span class="value">${vr.account_status || 'active'}</span></div>
-                        <div class="result-row"><span class="key">Name match score</span><span class="value">${vr.name_match_score ?? '—'}%</span></div>
-                        ${vr.name_match_score != null ? `<div class="result-row"><span class="key">Match confidence</span><div style="flex:1; max-width: 120px; margin-left: 1rem;"><div class="name-match-bar"><div class="name-match-fill" style="width: ${vr.name_match_score}%"></div></div></div></div>` : ''}
-                        <div class="result-row"><span class="key">UTR</span><span class="value">${data.utr || '—'}</span></div>
-                        ${data._mock ? '<div class="result-row"><span class="key">Mode</span><span class="value">Demo (mock)</span></div>' : ''}
-                    `;
+                    resultSubtitle.textContent = 'All details from transaction response';
+                    resultDetails.innerHTML = html;
                 } else {
+                    const sd = data.status_details || {};
                     resultTitle.textContent = 'Verification incomplete';
-                    resultSubtitle.textContent = data.status_details?.description || data.status || 'Unknown status';
-                    resultDetails.innerHTML = `<div class="result-row"><span class="key">Status</span><span class="value">${data.status}</span></div><div class="result-row"><span class="key">Reason</span><span class="value">${data.status_details?.reason || '—'}</span></div>`;
+                    resultSubtitle.textContent = sd.description || data.status || 'Unknown status';
+                    resultDetails.innerHTML = renderDetailSection('Status', { status: data.status, description: sd.description, source: sd.source, reason: sd.reason }, ['status', 'description', 'source', 'reason']) + renderDetailSection('Transaction', { id: data.id, utr: data.utr }, ['id', 'utr']);
                 }
             }
         }

@@ -27,18 +27,24 @@ def mock_penny_drop_verification(account_number: str, ifsc: str, beneficiary_nam
     time.sleep(2)
     
     # Mock response - in production this comes from Razorpay
+    masked_ac = account_number[-4:].rjust(len(account_number), "*") if len(account_number) >= 4 else "****"
     return {
         "id": f"fav_{uuid.uuid4().hex[:14]}",
         "entity": "fund_account.validation",
         "status": "completed",
-        "utr": "".join([str((hash(account_number + ifsc) % 10)) for _ in range(12)]),
+        "utr": "".join([str(abs(hash(account_number + ifsc + str(i))) % 10) for i in range(12)]),
+        "reference_id": str(uuid.uuid4())[:8],
+        "notes": {},
         "validation_results": {
             "account_status": "active",
-            "registered_name": "JOHN DOE",  # Bank-registered name from transaction
-            "name_match_score": 85,  # 0-100, how well beneficiary_name matches
+            "registered_name": "JOHN DOE",
+            "name_match_score": 85,
+            "account_number": masked_ac,
+            "ifsc": ifsc,
             "details": {
                 "bank_name": "HDFC Bank",
-                "branch": "Mumbai Main"
+                "branch": "Mumbai Main",
+                "account_type": "savings"
             }
         },
         "status_details": {
@@ -48,11 +54,24 @@ def mock_penny_drop_verification(account_number: str, ifsc: str, beneficiary_nam
         },
         "fund_account": {
             "id": f"fa_{uuid.uuid4().hex[:14]}",
+            "entity": "fund_account",
+            "account_type": "bank_account",
+            "active": True,
+            "created_at": 1700000000,
             "bank_account": {
-                "account_number": account_number[-4:].rjust(len(account_number), "*"),
+                "account_number": masked_ac,
                 "ifsc": ifsc,
                 "bank_name": "HDFC Bank",
-                "name": "JOHN DOE"
+                "name": "JOHN DOE",
+                "notes": []
+            },
+            "contact": {
+                "id": f"cont_{uuid.uuid4().hex[:14]}",
+                "name": beneficiary_name,
+                "email": "verify@example.com",
+                "contact": "9123456789",
+                "type": "employee",
+                "active": True
             }
         },
         "_mock": True
@@ -108,13 +127,17 @@ def mock_vpa_penny_drop_verification(vpa: str, beneficiary_name: str):
         "entity": "fund_account.validation",
         "status": "completed",
         "utr": "".join([str(abs(hash(vpa + str(i))) % 10) for i in range(12)]),
+        "reference_id": str(uuid.uuid4())[:8],
+        "notes": {},
         "validation_results": {
             "account_status": "active",
             "registered_name": "JOHN DOE",
             "name_match_score": 88,
             "details": {
                 "bank_name": "HDFC Bank",
-                "branch": "Mumbai Main"
+                "branch": "Mumbai Main",
+                "account_type": "savings",
+                "vpa": vpa
             }
         },
         "status_details": {
@@ -124,9 +147,20 @@ def mock_vpa_penny_drop_verification(vpa: str, beneficiary_name: str):
         },
         "fund_account": {
             "id": f"fa_{uuid.uuid4().hex[:14]}",
+            "entity": "fund_account",
             "account_type": "vpa",
+            "active": True,
+            "created_at": 1700000000,
             "vpa": {"address": vpa},
-            "bank_account": None
+            "bank_account": None,
+            "contact": {
+                "id": f"cont_{uuid.uuid4().hex[:14]}",
+                "name": beneficiary_name,
+                "email": "verify@example.com",
+                "contact": "9123456789",
+                "type": "employee",
+                "active": True
+            }
         },
         "_mock": True
     }
@@ -203,17 +237,34 @@ def verify_account():
         if result.get("error"):
             return jsonify(result), 400
         
-        # Normalize transaction response: bank, branch, bank-registered name
-        # Razorpay returns these in validation_results and fund_account.bank_account
+        # Build comprehensive response with all available fields
         vr = result.get("validation_results") or {}
         fa = result.get("fund_account") or {}
         ba = fa.get("bank_account") or {}
+        vpa_obj = fa.get("vpa") or {}
         details = vr.get("details") or {}
+        contact = fa.get("contact") or {}
+        sd = result.get("status_details") or {}
         
         result["transaction_response"] = {
             "bank": ba.get("bank_name") or details.get("bank_name"),
             "branch": details.get("branch") or ba.get("branch"),
             "bank_registered_name": vr.get("registered_name") or ba.get("name"),
+            "account_number": ba.get("account_number"),
+            "ifsc": ba.get("ifsc"),
+            "vpa": vpa_obj.get("address"),
+        }
+        result["_all"] = {
+            "id": result.get("id"),
+            "entity": result.get("entity"),
+            "status": result.get("status"),
+            "utr": result.get("utr"),
+            "reference_id": result.get("reference_id"),
+            "notes": result.get("notes"),
+            "validation_results": vr,
+            "status_details": sd,
+            "fund_account": fa,
+            "contact": contact,
         }
         
         return jsonify(result)
@@ -267,12 +318,28 @@ def verify_vpa():
         ba = fa.get("bank_account") or {}
         vpa_obj = fa.get("vpa") or {}
         details = vr.get("details") or {}
+        contact = fa.get("contact") or {}
+        sd = result.get("status_details") or {}
         
         result["transaction_response"] = {
             "bank": ba.get("bank_name") or details.get("bank_name"),
             "branch": details.get("branch") or ba.get("branch"),
             "bank_registered_name": vr.get("registered_name") or ba.get("name"),
+            "account_number": ba.get("account_number"),
+            "ifsc": ba.get("ifsc"),
             "vpa": vpa_obj.get("address") or vpa,
+        }
+        result["_all"] = {
+            "id": result.get("id"),
+            "entity": result.get("entity"),
+            "status": result.get("status"),
+            "utr": result.get("utr"),
+            "reference_id": result.get("reference_id"),
+            "notes": result.get("notes"),
+            "validation_results": vr,
+            "status_details": sd,
+            "fund_account": fa,
+            "contact": contact,
         }
         
         return jsonify(result)
@@ -290,4 +357,13 @@ def verify_vpa():
 
 
 if __name__ == "__main__":
+    if USE_MOCK:
+        print("\n" + "=" * 50)
+        print("Running in DEMO mode (mock verification)")
+        print("Configure .env for live verification. See RAZORPAY_SETUP.md")
+        print("=" * 50 + "\n")
+    else:
+        print("\n" + "=" * 50)
+        print("Running in LIVE mode (Razorpay)")
+        print("=" * 50 + "\n")
     app.run(debug=True, port=5000)

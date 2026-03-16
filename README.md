@@ -137,6 +137,14 @@ This app uses **Razorpay** (RazorpayX) for penny drop. Other providers that offe
 - [BulkPE](https://docs.bulkpe.in/)
 - [Enkash](https://docs.enkash.com/)
 
+## Deploy to gopalsankhala.in
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for:
+- Razorpay live-mode checklist (KYC, bank validation, funds)
+- Docker / systemd deployment
+- Nginx + SSL setup
+- DNS configuration
+
 ## License
 
 MIT
