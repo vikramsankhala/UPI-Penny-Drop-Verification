@@ -1,4 +1,5 @@
 .env
+razorpay-signup-helper.txt
 __pycache__/
 *.py[cod]
 *.pyo

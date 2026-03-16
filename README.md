@@ -2,6 +2,10 @@
 
 A web application that demonstrates the **full penny drop verification flow**: **Scan QR → Pay ₹1 → Verify** via [RazorpayX](https://razorpay.com/x/bank-account-verification).
 
+## Documentation
+
+- **[USER_GUIDE.md](USER_GUIDE.md)** — Purpose, applications, and detailed user guide
+
 ## Features
 
 - **UPI QR Code** — Upload or scan a UPI QR to extract VPA and payee name
