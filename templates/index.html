@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPI Penny Drop — QR Scan & Verification</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f0f12;
+            --surface: #1a1a1f;
+            --surface-elevated: #24242b;
+            --border: #2e2e38;
+            --text: #e8e8ed;
+            --text-muted: #8b8b9a;
+            --accent: #00d4aa;
+            --accent-dim: #00a88a;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .mock-badge {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.35rem 0.75rem;
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .flow-step .num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--surface-elevated);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .flow-step .label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .flow-arrow {
+            color: var(--border);
+            font-size: 1.2rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.15);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 500px) {
+            .form-row { grid-template-columns: 1fr; }
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-dim);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result-card {
+            display: none;
+            border-color: var(--border);
+        }
+
+        .result-card.visible {
+            display: block;
+        }
+
+        .result-card.success { border-left: 4px solid var(--success); }
+        .result-card.failed { border-left: 4px solid var(--error); }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .result-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .result-icon.success { background: rgba(34, 197, 94, 0.2); }
+        .result-icon.failed { background: rgba(239, 68, 68, 0.2); }
+
+        .result-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .result-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .result-details {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .tx-response-section {
+            background: var(--surface-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .tx-response-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+        }
+
+        .tx-response-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .tx-response-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .tx-response-key {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .tx-response-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-row:last-child { border-bottom: none; }
+
+        .result-row .key {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .result-row .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        .name-match-bar {
+            height: 8px;
+            background: var(--surface-elevated);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.25rem;
+        }
+
+        .name-match-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), var(--accent));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--error);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab {
+            padding: 0.6rem 1.2rem;
+            background: var(--surface-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .qr-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 1rem;
+        }
+
+        .qr-zone:hover, .qr-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(0, 212, 170, 0.05);
+        }
+
+        .qr-zone input { display: none; }
+
+        .qr-preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin: 0 auto 1rem;
+            display: none;
+        }
+
+        .qr-preview.visible { display: block; }
+
+        .qr-preview img { max-width: 100%; border-radius: 8px; }
+
+        .qr-decoded {
+            background: var(--surface-elevated);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            text-align: left;
+        }
+
+        .qr-decoded .label { font-size: 0.75rem; color: var(--accent); text-transform: uppercase; }
+        .qr-decoded .val { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="logo">UPI Penny Drop</h1>
+            <p class="tagline">Scan QR → Pay ₹1 → Verify via Razorpay</p>
+            {% if use_mock %}
+            <span class="mock-badge">Demo mode — configure Razorpay for live verification</span>
+            {% endif %}
+        </header>
+
+        <div class="flow-diagram">
+            <div class="flow-step">
+                <span class="num">1</span>
+                <span class="label">Scan QR / Enter</span>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">
+                <span class="num">2</span>
+                <span class="label">₹1 transfer</span>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">
+                <span class="num">3</span>
+                <span class="label">Verify & match</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="qr">UPI QR Code</button>
+            <button class="tab" data-tab="bank">Bank Account</button>
+        </div>
+
+        <div class="card tab-panel active" id="panel-qr">
+            <h2>Upload or scan UPI QR code</h2>
+            <div class="qr-zone" id="qrZone">
+                <input type="file" id="qrFile" accept="image/*">
+                <div class="qr-preview" id="qrPreview">
+                    <img id="qrImg" src="" alt="QR preview">
+                </div>
+                <p id="qrPrompt">Drop QR image here or click to upload</p>
+                <div class="qr-decoded" id="qrDecoded" style="display: none;">
+                    <div class="label">Decoded from QR</div>
+                    <div class="val" id="qrVpa"></div>
+                    <div class="val" id="qrPayee"></div>
+                </div>
+            </div>
+            <form id="verifyVpaForm">
+                <div class="form-group">
+                    <label for="vpa">UPI ID (VPA)</label>
+                    <input type="text" id="vpa" name="vpa" placeholder="merchant@paytm" required>
+                </div>
+                <div class="form-group">
+                    <label for="vpa_beneficiary_name">Payee / Beneficiary name</label>
+                    <input type="text" id="vpa_beneficiary_name" name="beneficiary_name" placeholder="As per QR / bank records" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vpa_contact_email">Contact email</label>
+                        <input type="email" id="vpa_contact_email" name="contact_email" placeholder="verify@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="vpa_contact_phone">Contact phone</label>
+                        <input type="tel" id="vpa_contact_phone" name="contact_phone" placeholder="9123456789">
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary" id="submitVpaBtn">Verify UPI</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card tab-panel" id="panel-bank">
+            <h2>Bank account details</h2>
+            <form id="verifyForm" style="margin-top: 0;">
+                <div class="form-group">
+                    <label for="account_number">Account number</label>
+                    <input type="text" id="account_number" name="account_number" 
+                           placeholder="e.g. 765432123456789" maxlength="18" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ifsc">IFSC code</label>
+                        <input type="text" id="ifsc" name="ifsc" 
+                               placeholder="e.g. HDFC0000129" maxlength="11" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="beneficiary_name">Beneficiary name</label>
+                        <input type="text" id="beneficiary_name" name="beneficiary_name" 
+                               placeholder="As per bank records" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="contact_email">Contact email</label>
+                        <input type="email" id="contact_email" name="contact_email" 
+                               placeholder="verify@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="contact_phone">Contact phone</label>
+                        <input type="tel" id="contact_phone" name="contact_phone" 
+                               placeholder="9123456789">
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        Verify account
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card result-card" id="resultCard">
+            <div class="result-header">
+                <div class="result-icon" id="resultIcon"></div>
+                <div>
+                    <div class="result-title" id="resultTitle"></div>
+                    <div class="result-subtitle" id="resultSubtitle"></div>
+                </div>
+            </div>
+            <div class="result-details" id="resultDetails"></div>
+            <div class="error-msg" id="errorMsg" style="display: none;"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        Powered by <a href="https://razorpay.com/x/bank-account-verification" target="_blank">RazorpayX</a> · 
+        <a href="https://github.com/vikramsankhala/UPI-Penny-Drop-Verification" target="_blank">GitHub</a>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(t => {
+            t.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+                t.classList.add('active');
+                document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Parse UPI URL: upi://pay?pa=merchant@paytm&pn=John%20Stores&am=1&cu=INR
+        function parseUpiQr(text) {
+            if (!text || !text.includes('upi://')) return null;
+            const q = text.includes('?') ? text.split('?')[1] : '';
+            const params = {};
+            q.split('&').forEach(p => {
+                const [k, v] = p.split('=');
+                if (k && v) params[k] = decodeURIComponent(v.replace(/\+/g, ' '));
+            });
+            return {
+                vpa: params.pa || '',
+                payeeName: params.pn || '',
+                amount: params.am || '',
+                currency: params.cu || 'INR'
+            };
+        }
+
+        // QR upload & decode
+        const qrZone = document.getElementById('qrZone');
+        const qrFile = document.getElementById('qrFile');
+        const qrPreview = document.getElementById('qrPreview');
+        const qrImg = document.getElementById('qrImg');
+        const qrPrompt = document.getElementById('qrPrompt');
+        const qrDecoded = document.getElementById('qrDecoded');
+        const qrVpaEl = document.getElementById('qrVpa');
+        const qrPayeeEl = document.getElementById('qrPayee');
+
+        function processQrImage(file) {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = typeof jsQR !== 'undefined' && jsQR(imageData.data, imageData.width, imageData.height);
+                if (code) {
+                    const upi = parseUpiQr(code.data);
+                    if (upi && upi.vpa) {
+                        document.getElementById('vpa').value = upi.vpa;
+                        document.getElementById('vpa_beneficiary_name').value = upi.payeeName || '';
+                        qrVpaEl.textContent = 'VPA: ' + upi.vpa;
+                        qrPayeeEl.textContent = 'Payee: ' + (upi.payeeName || '—');
+                        qrDecoded.style.display = 'block';
+                    } else {
+                        qrVpaEl.textContent = 'Not a UPI QR: ' + code.data.substring(0, 50) + '…';
+                        qrPayeeEl.textContent = '';
+                        qrDecoded.style.display = 'block';
+                    }
+                } else {
+                    qrVpaEl.textContent = 'No QR code found in image';
+                    qrPayeeEl.textContent = '';
+                    qrDecoded.style.display = 'block';
+                }
+            };
+            img.src = URL.createObjectURL(file);
+        }
+
+        qrZone.addEventListener('click', () => qrFile.click());
+        qrZone.addEventListener('dragover', (e) => { e.preventDefault(); qrZone.classList.add('dragover'); });
+        qrZone.addEventListener('dragleave', () => qrZone.classList.remove('dragover'));
+        qrZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            qrZone.classList.remove('dragover');
+            const f = e.dataTransfer.files[0];
+            if (f && f.type.startsWith('image/')) {
+                qrImg.src = URL.createObjectURL(f);
+                qrPreview.classList.add('visible');
+                qrPrompt.textContent = f.name;
+                processQrImage(f);
+            }
+        });
+        qrFile.addEventListener('change', (e) => {
+            const f = e.target.files[0];
+            if (f) {
+                qrImg.src = URL.createObjectURL(f);
+                qrPreview.classList.add('visible');
+                qrPrompt.textContent = f.name;
+                processQrImage(f);
+            }
+        });
+
+        const form = document.getElementById('verifyForm');
+        const vpaForm = document.getElementById('verifyVpaForm');
+        const resultCard = document.getElementById('resultCard');
+        const resultIcon = document.getElementById('resultIcon');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultSubtitle = document.getElementById('resultSubtitle');
+        const resultDetails = document.getElementById('resultDetails');
+        const errorMsg = document.getElementById('errorMsg');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitVpaBtn = document.getElementById('submitVpaBtn');
+
+        function showResult(data, isVpa) {
+            if (data.error) {
+                resultCard.classList.add('visible', 'failed');
+                resultIcon.className = 'result-icon failed';
+                resultIcon.textContent = '✕';
+                resultTitle.textContent = 'Verification failed';
+                resultSubtitle.textContent = data.message || 'Please check the details and try again.';
+                errorMsg.textContent = data.message;
+                errorMsg.style.display = 'block';
+                resultDetails.innerHTML = '';
+            } else {
+                const success = data.status === 'completed';
+                resultCard.classList.add('visible', success ? 'success' : 'failed');
+                resultIcon.className = 'result-icon ' + (success ? 'success' : 'failed');
+                resultIcon.textContent = success ? '✓' : '✕';
+                if (success) {
+                    const vr = data.validation_results || {};
+                    const tx = data.transaction_response || {};
+                    resultTitle.textContent = 'Account verified';
+                    resultSubtitle.textContent = 'Penny drop completed — transaction response below';
+                    resultDetails.innerHTML = `
+                        <div class="tx-response-section">
+                            <div class="tx-response-label">Transaction response</div>
+                            <div class="tx-response-grid">
+                                ${tx.vpa ? `<div class="tx-response-item"><span class="tx-response-key">UPI ID</span><span class="tx-response-val">${tx.vpa}</span></div>` : ''}
+                                <div class="tx-response-item"><span class="tx-response-key">Bank</span><span class="tx-response-val">${tx.bank || vr.details?.bank_name || '—'}</span></div>
+                                <div class="tx-response-item"><span class="tx-response-key">Branch</span><span class="tx-response-val">${tx.branch || vr.details?.branch || '—'}</span></div>
+                                <div class="tx-response-item"><span class="tx-response-key">Bank-registered name</span><span class="tx-response-val">${tx.bank_registered_name || vr.registered_name || '—'}</span></div>
+                            </div>
+                        </div>
+                        <div class="result-row"><span class="key">Account status</span><span class="value">${vr.account_status || 'active'}</span></div>
+                        <div class="result-row"><span class="key">Name match score</span><span class="value">${vr.name_match_score ?? '—'}%</span></div>
+                        ${vr.name_match_score != null ? `<div class="result-row"><span class="key">Match confidence</span><div style="flex:1; max-width: 120px; margin-left: 1rem;"><div class="name-match-bar"><div class="name-match-fill" style="width: ${vr.name_match_score}%"></div></div></div></div>` : ''}
+                        <div class="result-row"><span class="key">UTR</span><span class="value">${data.utr || '—'}</span></div>
+                        ${data._mock ? '<div class="result-row"><span class="key">Mode</span><span class="value">Demo (mock)</span></div>' : ''}
+                    `;
+                } else {
+                    resultTitle.textContent = 'Verification incomplete';
+                    resultSubtitle.textContent = data.status_details?.description || data.status || 'Unknown status';
+                    resultDetails.innerHTML = `<div class="result-row"><span class="key">Status</span><span class="value">${data.status}</span></div><div class="result-row"><span class="key">Reason</span><span class="value">${data.status_details?.reason || '—'}</span></div>`;
+                }
+            }
+        }
+
+        vpaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitVpaBtn.disabled = true;
+            submitVpaBtn.innerHTML = '<span class="spinner"></span> Verifying...';
+            resultCard.classList.remove('visible', 'success', 'failed');
+            errorMsg.style.display = 'none';
+            try {
+                const res = await fetch('/api/verify-vpa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        vpa: document.getElementById('vpa').value.trim().toLowerCase(),
+                        beneficiary_name: document.getElementById('vpa_beneficiary_name').value.trim(),
+                        contact_email: document.getElementById('vpa_contact_email').value.trim(),
+                        contact_phone: document.getElementById('vpa_contact_phone').value.trim()
+                    })
+                });
+                const data = await res.json();
+                showResult(data);
+            } catch (err) {
+                resultCard.classList.add('visible', 'failed');
+                resultIcon.className = 'result-icon failed';
+                resultIcon.textContent = '✕';
+                resultTitle.textContent = 'Request failed';
+                resultSubtitle.textContent = 'Could not reach the server';
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+                resultDetails.innerHTML = '';
+            } finally {
+                submitVpaBtn.disabled = false;
+                submitVpaBtn.textContent = 'Verify UPI';
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> Verifying...';
+            resultCard.classList.remove('visible', 'success', 'failed');
+            errorMsg.style.display = 'none';
+
+            const payload = {
+                account_number: document.getElementById('account_number').value.replace(/\s/g, ''),
+                ifsc: document.getElementById('ifsc').value.trim().toUpperCase(),
+                beneficiary_name: document.getElementById('beneficiary_name').value.trim(),
+                contact_email: document.getElementById('contact_email').value.trim(),
+                contact_phone: document.getElementById('contact_phone').value.trim()
+            };
+
+            try {
+                const res = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                showResult(data);
+            } catch (err) {
+                resultCard.classList.add('visible', 'failed');
+                resultIcon.className = 'result-icon failed';
+                resultIcon.textContent = '✕';
+                resultTitle.textContent = 'Request failed';
+                resultSubtitle.textContent = 'Could not reach the server';
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+                resultDetails.innerHTML = '';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Verify account';
+            }
+        });
+    </script>
+</body>
+</html>
